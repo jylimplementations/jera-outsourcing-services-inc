@@ -30,3 +30,8 @@ class HrWorkEntry(models.Model):
                     'duration': round(total_hours, 2),
                     'work_entry_type_id': attendance_type.id,
                 })
+
+    def action_generate_from_attendance(self):
+        """Method called by the XML button."""
+        for rec in self:
+            self.create_entries_from_attendance(rec.employee_id, rec.date)
