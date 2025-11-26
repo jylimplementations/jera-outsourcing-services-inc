@@ -5,7 +5,7 @@ class HrWorkEntry(models.Model):
 
     @api.model
     def create_entries_from_attendance(self, employee, date):
-        """Create work entries based on attendance records."""
+        """Generic example: create work entries based on attendance records."""
         day_start = fields.Datetime.to_datetime(f"{date} 00:00:00")
         day_end   = fields.Datetime.to_datetime(f"{date} 23:59:59")
 
@@ -15,18 +15,23 @@ class HrWorkEntry(models.Model):
             ('check_in', '<=', day_end),
         ])
 
+        total_hours = 0.0
         for att in attendances:
             if att.check_in and att.check_out:
-                attendance_type = self.env['hr.work.entry.type'].search([('name','=','Attendance')], limit=1)
-                if attendance_type:
-                    self.create({
-                        'employee_id': employee.id,
-                        'date_start': att.check_in,
-                        'date_stop': att.check_out,
-                        'work_entry_type_id': attendance_type.id,
-                    })
+                delta = att.check_out - att.check_in
+                total_hours += delta.total_seconds() / 3600.0
+
+        if total_hours > 0:
+            attendance_type = self.env['hr.work.entry.type'].search([('name','=','Attendance')], limit=1)
+            if attendance_type:
+                self.create({
+                    'employee_id': employee.id,
+                    'date': date,
+                    'duration': round(total_hours, 2),
+                    'work_entry_type_id': attendance_type.id,
+                })
 
     def action_generate_from_attendance(self):
         """Method called by the XML button."""
         for rec in self:
-            self.create_entries_from_attendance(rec.employee_id, rec.date_start.date())
+            self.create_entries_from_attendance(rec.employee_id, rec.date)
