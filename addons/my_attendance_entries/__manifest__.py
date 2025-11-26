@@ -4,7 +4,9 @@
     'summary': 'Generate work entries from attendance records',
     'author': 'Jefferson',
     'depends': ['hr', 'hr_payroll'],
-    'data': [],
+    'data': [
+        'views/work_entry_views.xml',
+    ],
     'installable': True,
     'application': False,
 }
