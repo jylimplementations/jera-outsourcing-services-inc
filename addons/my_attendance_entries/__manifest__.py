@@ -5,7 +5,6 @@
     'author': 'Custom Dev',
     'depends': ['hr_work_entry', 'hr_attendance'],
     'data': [
-        'views/work_entry_views.xml',
         'data/work_entry_types.xml',
     ],
     'installable': True,
