@@ -1,0 +1,11 @@
+<odoo>
+    <record id="work_entry_type_overtime" model="hr.work.entry.type">
+        <field name="name">Regular OT</field>
+        <field name="code">OVERTIME</field>
+    </record>
+
+    <record id="work_entry_type_night" model="hr.work.entry.type">
+        <field name="name">Night Shift OT</field>
+        <field name="code">OT_NIGHT</field>
+    </record>
+</odoo>

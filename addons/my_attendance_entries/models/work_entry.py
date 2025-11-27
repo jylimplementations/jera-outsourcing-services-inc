@@ -1,37 +1,67 @@
-from odoo import models, api, fields
+from odoo import models, api
 
 class HrWorkEntry(models.Model):
     _inherit = 'hr.work.entry'
 
     @api.model
-    def create_entries_from_attendance(self, employee, date):
-        """Generic example: create work entries based on attendance records."""
-        day_start = fields.Datetime.to_datetime(f"{date} 00:00:00")
-        day_end   = fields.Datetime.to_datetime(f"{date} 23:59:59")
+    def action_reset_work_entries(self):
+        res = super().action_reset_work_entries()
 
-        attendances = self.env['hr.attendance'].search([
-            ('employee_id', '=', employee.id),
-            ('check_in', '>=', day_start),
-            ('check_in', '<=', day_end),
-        ])
-
-        total_hours = 0.0
+        attendances = self.env['hr.attendance'].search([])
         for att in attendances:
-            if att.check_in and att.check_out:
-                delta = att.check_out - att.check_in
-                total_hours += delta.total_seconds() / 3600.0
+            employee = att.employee_id
+            calendar = employee.resource_calendar_id
 
-        if total_hours > 0:
-            attendance_type = self.env['hr.work.entry.type'].search([('name','=','Attendance')], limit=1)
-            if attendance_type:
+            if not calendar:
+                continue  # skip if no calendar assigned
+
+            # Get working hours from calendar
+            # Simplified: assume one interval per day
+            work_hours = calendar.attendance_ids.filtered(
+                lambda a: a.dayofweek == str(att.check_in.weekday())
+            )
+            if not work_hours:
+                continue
+
+            start_hour = min(work_hours.mapped('hour_from'))
+            end_hour = max(work_hours.mapped('hour_to'))
+
+            # Apply buffer: 1 hour before and after
+            buffer_start = start_hour
+            buffer_end = end_hour
+
+            start = att.check_in
+            end = att.check_out
+
+            # Regular block
+            regular_start = start.replace(hour=int(start_hour), minute=0)
+            regular_end = start.replace(hour=int(end_hour), minute=0)
+            if start < regular_end and end > regular_start:
                 self.create({
                     'employee_id': employee.id,
-                    'date': date,
-                    'duration': round(total_hours, 2),
-                    'work_entry_type_id': attendance_type.id,
+                    'date_start': max(start, regular_start),
+                    'date_stop': min(end, regular_end),
+                    'work_entry_type_id': self.env.ref('hr_work_entry.work_entry_type_attendance').id,
                 })
 
-    def action_generate_from_attendance(self):
-        """Method called by the XML button."""
-        for rec in self:
-            self.create_entries_from_attendance(rec.employee_id, rec.date)
+            # Overtime block (after buffer_end + 1 hour)
+            overtime_start = start.replace(hour=int(end_hour) + 1, minute=0)
+            if end > overtime_start:
+                self.create({
+                    'employee_id': employee.id,
+                    'date_start': max(start, overtime_start),
+                    'date_stop': end,
+                    'work_entry_type_id': self.env.ref('my_attendance_entries.work_entry_type_overtime').id,
+                })
+
+            # Night shift block
+            night_start = start.replace(hour=22, minute=0)
+            if end.hour >= 22 or start.hour < 6:
+                self.create({
+                    'employee_id': employee.id,
+                    'date_start': max(start, night_start),
+                    'date_stop': end,
+                    'work_entry_type_id': self.env.ref('my_attendance_entries.work_entry_type_night').id,
+                })
+
+        return res
