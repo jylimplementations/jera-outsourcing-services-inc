@@ -4,9 +4,7 @@
     'summary': 'Generate work entries from attendance records',
     'author': 'Custom Dev',
     'depends': ['hr_work_entry', 'hr_attendance'],
-    'data': [
-        'data/work_entry_types.xml',
-    ],
+    'data': [],
     'installable': True,
     'application': False,
 }
